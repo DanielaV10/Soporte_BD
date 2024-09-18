@@ -8,6 +8,7 @@
 -- Estudiante: Vidal Lopez Daniela
 -- Reg: 214058840
 
+
 -- Creación de la base de datos
 CREATE DATABASE airport;
 USE airport;
@@ -227,28 +228,31 @@ alter table Airplane
 add constraint fkairplane
 foreign key (id_airline) references Aerolineas(id_aerolinea);
 
--- Tabla: tripulante
-CREATE TABLE Tripulante (
-    id_tripulante INT IDENTITY(1,1) PRIMARY KEY,
-    nombre NVARCHAR(200) NOT NULL CHECK (nombre LIKE '%[A-Za-z ]%'), -- Solo permite letras y espacios
-	profesion NVARCHAR(200) NOT NULL CHECK (profesion LIKE '%[A-Za-z ]%'), -- Solo permite letras y espacios
-    licencia NVARCHAR(50) NOT NULL CHECK (licencia LIKE '%[A-Za-z0-9 ]%'), -- Permite letras, números y espacios
-	horas_de_vuelo INT NOT NULL check(horas_de_vuelo>=0), --permite solo numeros positivos
-    id_aerolinea INT,
-    FOREIGN KEY (id_aerolinea) REFERENCES Aerolineas(id_aerolinea) 
-        ON DELETE NO ACTION ON UPDATE NO ACTION -- Cambiado a NO ACTION para evitar ciclos
-);
-
 -- Tabla: tripulacion
 CREATE TABLE Tripulacion (
     id_tripulacion INT IDENTITY(1,1) PRIMARY KEY,
-    id_tripulante INT NOT NULL , -- de la tabla tripulante
     id_Flight INT NOT NULL , -- de la tabla vuelo
-    FOREIGN KEY (id_tripulante) REFERENCES Tripulante(id_tripulante) 
-        ON DELETE NO ACTION ON UPDATE NO ACTION, -- Cambiado a NO ACTION para evitar ciclos
     FOREIGN KEY (id_Flight) REFERENCES Flight(id) 
         ON DELETE NO ACTION ON UPDATE NO ACTION -- Cambiado a NO ACTION para evitar ciclos
 );
+
+-- Tabla para Profesión
+CREATE TABLE Profesion (
+    id INT IDENTITY(1,1) PRIMARY KEY,      -- Identificador único de la profesión
+    nombre VARCHAR(50) NOT NULL, -- Nombre de la profesión
+    fecha_fin DATE               -- Fecha de finalización (opcional)
+);
+
+-- Tabla para Tripulante
+CREATE TABLE Tripulante (
+    cod INT IDENTITY(1,1) PRIMARY KEY,       -- Código único del tripulante
+    nombre VARCHAR(100) NOT NULL, -- Nombre del tripulante
+    edad INT,                     -- Edad del tripulante
+    id_tripulacion INT REFERENCES Tripulacion(id_tripulacion), -- Llave foránea a la tabla Tripulación
+    id_profesion INT REFERENCES Profesion(id) -- Llave foránea a la tabla Profesión
+);
+
+
 
 -- AÑADIMOS el atributo ESTADO EN LA TABLA seat(ASIENTO) la condicion de los asiento para ver si se pueden USAR
 ALTER TABLE seat
@@ -318,98 +322,174 @@ foreign key (id_pasajero) references Customer(id)
 on delete no action on update no action,
 )
 --------------------------------------------------- INSERTS PARA CADA TABLA ------------------------------------------------------------------------
--- Inserciones para la tabla Customer
-INSERT INTO Customer (Date_of_Birth, Name) VALUES ('1985-06-15', 'Juan Pérez');
-INSERT INTO Customer (Date_of_Birth, Name) VALUES ('1990-12-01', 'María López');
-INSERT INTO Customer (Date_of_Birth, Name) VALUES ('1978-04-22', 'Carlos García');
+-- Crear 80,000 clientes
+INSERT INTO Customer (Date_of_Birth, Name)
+SELECT 
+    DATEADD(DAY, -1 * (ABS(CHECKSUM(NEWID())) % 20000), GETDATE()), -- Fecha de nacimiento entre hace 55 años y hoy
+    CONCAT('Cliente_', ROW_NUMBER() OVER (ORDER BY (SELECT NULL)))
+FROM (SELECT TOP (80000) * FROM sys.all_objects) AS Temp;
 
--- Inserciones para la tabla Airport
-INSERT INTO Airport (Name) VALUES ('JFK International Airport');
-INSERT INTO Airport (Name) VALUES ('Los Angeles International Airport');
-INSERT INTO Airport (Name) VALUES ('Chicago Hare International Airport');
+-- Asignar clasificación a cada cliente
+INSERT INTO Clasificacion_Pasajeros (Nivel, Fecha_Clasificacion, id_Customer)
+SELECT
+    'Ninguno', -- Nivel inicial
+    GETDATE(), -- Fecha actual
+    C.id
+FROM Customer C;
 
--- Inserciones para la tabla Plane_Model
-INSERT INTO Plane_Model (Description, Graphic) VALUES ('Boeing 737', 'boeing737.jpg');
-INSERT INTO Plane_Model (Description, Graphic) VALUES ('Airbus A320', 'airbusA320.jpg');
-INSERT INTO Plane_Model (Description, Graphic) VALUES ('Boeing 747', 'boeing747.jpg');
+-- Asignar una tarjeta de viajero frecuente al 50% de los clientes
+INSERT INTO Frequent_Flyer_Card (Miles, Meal_Code, Customer_id)
+SELECT
+    ABS(CHECKSUM(NEWID())) % 100000, -- Millas acumuladas
+    ABS(CHECKSUM(NEWID())) % 10,     -- Código de comida
+    C.id
+FROM Customer C
+WHERE ABS(CHECKSUM(NEWID())) % 2 = 0;
 
--- Inserciones para la tabla Frequent_Flyer_Card
-INSERT INTO Frequent_Flyer_Card (Miles, Meal_Code, Customer_id) VALUES (50000, 2, 1);
-INSERT INTO Frequent_Flyer_Card (Miles, Meal_Code, Customer_id) VALUES (75000, 3, 2);
-INSERT INTO Frequent_Flyer_Card (Miles, Meal_Code, Customer_id) VALUES (120000, 1, 3);
+-- Crear 50 aeropuertos
+INSERT INTO Airport (Name)
+SELECT CONCAT('Aeropuerto_', ROW_NUMBER() OVER (ORDER BY (SELECT NULL)))
+FROM (SELECT TOP (50) * FROM sys.all_objects) AS Temp;
 
--- Inserciones para la tabla Airplane
-INSERT INTO Airplane (Begin_of_Operation, Status, Plane_Model_id) VALUES ('2015-03-15', 'Operational', 1);
-INSERT INTO Airplane (Begin_of_Operation, Status, Plane_Model_id) VALUES ('2018-07-10', 'Maintenance', 2);
-INSERT INTO Airplane (Begin_of_Operation, Status, Plane_Model_id) VALUES ('2020-01-25', 'Operational', 3);
+-- Crear 10 aerolíneas
+INSERT INTO Aerolineas (nombre, codigo_icao, pais)
+SELECT 
+    CONCAT('Aerolínea_', ROW_NUMBER() OVER (ORDER BY (SELECT NULL))),
+    CHAR(65 + ((ROW_NUMBER() OVER (ORDER BY (SELECT NULL))) % 26)) + 
+    CHAR(65 + ((ROW_NUMBER() OVER (ORDER BY (SELECT NULL))) % 26)) + 
+    CHAR(65 + ((ROW_NUMBER() OVER (ORDER BY (SELECT NULL))) % 26)),
+    CONCAT('País_', ROW_NUMBER() OVER (ORDER BY (SELECT NULL)))
+FROM (SELECT TOP (10) * FROM sys.all_objects) AS Temp;
 
--- Inserciones para la tabla Flight_Number
-INSERT INTO Flight_Number (Departure_Time, Description, Type, Airline, Airport_Start, Airport_Goal) VALUES ('06:30:00', 'NY to LA', 0, 'American Airlines', 1, 2);
-INSERT INTO Flight_Number (Departure_Time, Description, Type, Airline, Airport_Start, Airport_Goal) VALUES ('14:45:00', 'LA to Chicago', 1, 'United Airlines', 2, 3);
-INSERT INTO Flight_Number (Departure_Time, Description, Type, Airline, Airport_Start, Airport_Goal) VALUES ('09:00:00', 'Chicago to NY', 0, 'Delta Airlines', 3, 1);
+-- Crear 20 modelos de avión
+INSERT INTO Plane_Model (Description, Graphic)
+SELECT 
+    CONCAT('Modelo_', ROW_NUMBER() OVER (ORDER BY (SELECT NULL))),
+    CONCAT('Gráfico_', ROW_NUMBER() OVER (ORDER BY (SELECT NULL)))
+FROM (SELECT TOP (20) * FROM sys.all_objects) AS Temp;
 
--- Inserciones para la tabla Ticket
-INSERT INTO Ticket (Number, Customer_id) VALUES (101, 1);
-INSERT INTO Ticket (Number, Customer_id) VALUES (102, 2);
-INSERT INTO Ticket (Number, Customer_id) VALUES (103, 3);
+-- Crear 100 aviones
+INSERT INTO Airplane (Begin_of_Operation, Status, Plane_Model_id, id_airline)
+SELECT
+    DATEADD(DAY, -1 * (ABS(CHECKSUM(NEWID())) % 1000), GETDATE()), -- Fecha entre hace ~3 años y hoy
+    CASE (ABS(CHECKSUM(NEWID())) % 3)
+        WHEN 0 THEN 'Operational'
+        WHEN 1 THEN 'Maintenance'
+        ELSE 'Decommissioned'
+    END,
+    ABS(CHECKSUM(NEWID())) % 20 + 1, -- ID de modelo de avión entre 1 y 20
+    ABS(CHECKSUM(NEWID())) % 10 + 1  -- ID de aerolínea entre 1 y 10
+FROM (SELECT TOP (100) * FROM sys.all_objects) AS Temp;
 
--- Inserciones para la tabla Flight
-INSERT INTO Flight (Boarding_Time, Flight_Date, Gate, Check_In_Counter, Flight_Number_id) VALUES ('05:30:00', '2024-09-15', 12, 1, 1);
-INSERT INTO Flight (Boarding_Time, Flight_Date, Gate, Check_In_Counter, Flight_Number_id) VALUES ('13:45:00', '2024-09-16', 5, 0, 2);
-INSERT INTO Flight (Boarding_Time, Flight_Date, Gate, Check_In_Counter, Flight_Number_id) VALUES ('08:00:00', '2024-09-17', 3, 1, 3);
+-- Crear 2000 números de vuelo
+INSERT INTO Flight_Number (Departure_Time, Description, Type, Airline, Airport_Start, Airport_Goal)
+SELECT
+    CONVERT(TIME, DATEADD(MINUTE, ABS(CHECKSUM(NEWID())) % 1440, '00:00')), -- Hora aleatoria
+    CONCAT('Descripción vuelo_', ROW_NUMBER() OVER (ORDER BY (SELECT NULL))),
+    ABS(CHECKSUM(NEWID())) % 2, -- Tipo 0 o 1
+    A.nombre,
+    ABS(CHECKSUM(NEWID())) % 50 + 1, -- ID de aeropuerto de inicio
+    ABS(CHECKSUM(NEWID())) % 50 + 1  -- ID de aeropuerto de destino
+FROM (SELECT TOP (2000) * FROM sys.all_objects) AS Temp
+CROSS JOIN (SELECT id_aerolinea, nombre FROM Aerolineas) AS A;
 
--- Inserciones para la tabla Seat
-INSERT INTO Seat (Size, Number, Location, Plane_Model_id) VALUES (18, 25, 'Window', 1); 
-INSERT INTO Seat (Size, Number, Location, Plane_Model_id) VALUES (20, 10, 'Aisle', 2); 
-INSERT INTO Seat (Size, Number, Location, Plane_Model_id) VALUES (19, 7, 'Middle', 3); 
+-- Crear 100 tramos mayores
+INSERT INTO Tramo_mayor (origen, destino, duracion, distancia)
+SELECT
+    ABS(CHECKSUM(NEWID())) % 50 + 1, -- Aeropuerto origen
+    ABS(CHECKSUM(NEWID())) % 50 + 1, -- Aeropuerto destino
+    CONVERT(TIME, DATEADD(MINUTE, ABS(CHECKSUM(NEWID())) % 480 + 60, '00:00')), -- Duración entre 1 y 8 horas
+    ABS(CHECKSUM(NEWID())) % 10000 + 500 -- Distancia entre 500 y 10,500 km
+FROM (SELECT TOP (100) * FROM sys.all_objects) AS Temp;
 
--- Inserciones para la tabla Available_Seat
-INSERT INTO Available_Seat (Flight_id, Seat_id) VALUES (1, 1);
-INSERT INTO Available_Seat (Flight_id, Seat_id) VALUES (2, 2);
-INSERT INTO Available_Seat (Flight_id, Seat_id) VALUES (3, 3);
+-- Crear 200 números de tramo
+INSERT INTO Numero_tramo (numero, id_tramoMayor)
+SELECT
+    ROW_NUMBER() OVER (ORDER BY (SELECT NULL)),
+    TM.id
+FROM Tramo_mayor TM;
 
--- Inserciones para la tabla Coupon
-INSERT INTO Coupon (Date_of_Redemption, Class, Standby, Meal_Code, Ticketing_Code, Available_Seat_id, Flight_id) VALUES ('2024-09-15', 'Economy', 'No', 2, 1, 1, 1);
-INSERT INTO Coupon (Date_of_Redemption, Class, Standby, Meal_Code, Ticketing_Code, Available_Seat_id, Flight_id) VALUES ('2024-09-16', 'Business', 'Yes', 3, 2, 2, 2);
-INSERT INTO Coupon (Date_of_Redemption, Class, Standby, Meal_Code, Ticketing_Code, Available_Seat_id, Flight_id) VALUES ('2024-09-17', 'First', 'No', 1, 3, 3, 3);
+-- Crear vuelos y asignar a números de vuelo y tramos
+INSERT INTO Flight (Boarding_Time, Flight_Date, Gate, Check_In_Counter, Flight_Number_id, id_tramo, id_numeroTramo)
+SELECT
+    CONVERT(TIME, DATEADD(MINUTE, ABS(CHECKSUM(NEWID())) % 60, FN.Departure_Time)), -- Hora de embarque
+    DATEADD(DAY, ABS(CHECKSUM(NEWID())) % 730, GETDATE()), -- Fecha aleatoria en 2 años
+    ABS(CHECKSUM(NEWID())) % 50 + 1, -- Gate
+    ABS(CHECKSUM(NEWID())) % 2, -- Check-In Counter
+    FN.id,
+    TM.id,
+    NT.id
+FROM Flight_Number FN
+CROSS APPLY (SELECT TOP 1 id FROM Tramo_mayor ORDER BY NEWID()) AS TM
+CROSS APPLY (SELECT TOP 1 id FROM Numero_tramo WHERE id_tramoMayor = TM.id ORDER BY NEWID()) AS NT;
 
--- Inserciones para la tabla Pieces_of_Luggage
-INSERT INTO Pieces_of_Luggage (Number, Weight, Coupon_id) VALUES (2, 30, 1);
-INSERT INTO Pieces_of_Luggage (Number, Weight, Coupon_id) VALUES (1, 25, 2);
-INSERT INTO Pieces_of_Luggage (Number, Weight, Coupon_id) VALUES (3, 45, 3);
+-- Crear tramos menores
+INSERT INTO tramo_menor (origen, destino, duracion, distancia, orden, id_numeroTramo)
+SELECT
+    ABS(CHECKSUM(NEWID())) % 50 + 1, -- Aeropuerto origen
+    ABS(CHECKSUM(NEWID())) % 50 + 1, -- Aeropuerto destino
+    CONVERT(TIME, DATEADD(MINUTE, ABS(CHECKSUM(NEWID())) % 180 + 30, '00:00')), -- Duración entre 30 min y 3 horas
+    ABS(CHECKSUM(NEWID())) % 3000 + 100, -- Distancia entre 100 y 3100 km
+    ROW_NUMBER() OVER (PARTITION BY NT.id ORDER BY (SELECT NULL)),
+    NT.id
+FROM Numero_tramo NT
+CROSS APPLY (SELECT TOP (ABS(CHECKSUM(NEWID())) % 3 + 1) * FROM sys.all_objects) AS T; -- Cada tramo mayor tiene entre 1 y 3 tramos menores
 
--- Inserciones para la tabla Aerolineas
-INSERT INTO Aerolineas (nombre, codigo_icao, pais) VALUES ('American Airlines', 'AAL', 'United States');
-INSERT INTO Aerolineas (nombre, codigo_icao, pais) VALUES ('United Airlines', 'UAL', 'United States');
-INSERT INTO Aerolineas (nombre, codigo_icao, pais) VALUES ('Delta Airlines', 'DAL', 'United States');
+-- Crear asientos para cada modelo de avión
+INSERT INTO Seat (Size, Number, Location, Plane_Model_id, estado)
+SELECT
+    ABS(CHECKSUM(NEWID())) % 3 + 1, -- Tamaño entre 1 y 3
+    ROW_NUMBER() OVER (ORDER BY (SELECT NULL)), -- Número de asiento
+    CASE (ABS(CHECKSUM(NEWID())) % 3)
+        WHEN 0 THEN 'Ventana'
+        WHEN 1 THEN 'Pasillo'
+        ELSE 'Centro'
+    END,
+    PM.id,
+    'disponible'
+FROM Plane_Model PM
+CROSS APPLY (
+    SELECT TOP (ABS(CHECKSUM(NEWID())) % 100 + 100) * FROM sys.all_objects
+) AS Seats;
 
--- Inserciones para la tabla Aviones
-INSERT INTO Aviones (modelo, capacidad, id_aerolinea) VALUES ('Boeing 737', 160, 1);
-INSERT INTO Aviones (modelo, capacidad, id_aerolinea) VALUES ('Airbus A320', 180, 2);
-INSERT INTO Aviones (modelo, capacidad, id_aerolinea) VALUES ('Boeing 747', 400, 3);
+-- Asignar asientos disponibles a cada vuelo
+INSERT INTO Available_Seat (Flight_id, Seat_id, estado)
+SELECT
+    F.id,
+    S.id,
+    'disponible'
+FROM Flight F
+JOIN Airplane A ON A.id = ABS(CHECKSUM(NEWID())) % 100 + 1 -- Asignar avión al vuelo
+JOIN Seat S ON S.Plane_Model_id = A.Plane_Model_id
+WHERE S.estado = 'disponible';
 
--- Inserciones para la tabla Pilotos
-INSERT INTO Pilotos (nombre, licencia, id_aerolinea) VALUES ('John Smith', 'AA12345', 1);
-INSERT INTO Pilotos (nombre, licencia, id_aerolinea) VALUES ('David Johnson', 'UA54321', 2);
-INSERT INTO Pilotos (nombre, licencia, id_aerolinea) VALUES ('Michael Brown', 'DA98765', 3);
+-- Crear 200,000 boletos
+INSERT INTO Ticket (Number, Customer_id)
+SELECT
+    ROW_NUMBER() OVER (ORDER BY (SELECT NULL)),
+    C.id
+FROM Customer C
+CROSS APPLY (SELECT TOP (ABS(CHECKSUM(NEWID())) % 3 + 1) * FROM sys.all_objects) AS T -- Cada cliente compra entre 1 y 3 boletos
+WHERE ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) <= 200000;
 
--- Inserciones para la tabla Tripulacion
-INSERT INTO Tripulacion (nombre, id_aerolinea) VALUES ('Crew A', 1);
-INSERT INTO Tripulacion (nombre, id_aerolinea) VALUES ('Crew B', 2);
-INSERT INTO Tripulacion (nombre, id_aerolinea) VALUES ('Crew C', 3);
-
--- Inserciones para la tabla Vuelos
-INSERT INTO Vuelos (numero_vuelo, fecha, hora, origen, destino, id_avion, id_piloto) VALUES ('AA100', '2024-09-15', '06:30:00', 'New York', 'Los Angeles', 1, 1);
-INSERT INTO Vuelos (numero_vuelo, fecha, hora, origen, destino, id_avion, id_piloto) VALUES ('UA200', '2024-09-16', '14:45:00', 'Los Angeles', 'Chicago', 2, 2);
-INSERT INTO Vuelos (numero_vuelo, fecha, hora, origen, destino, id_avion, id_piloto) VALUES ('DL300', '2024-09-17', '09:00:00', 'Chicago', 'New York', 3, 3);
-
--- Inserciones para la tabla Asientos_Disponibles
-INSERT INTO Asientos_Disponibles (numero_asiento, clase, id_vuelo) VALUES ('25A', 'Economy', 1);
-INSERT INTO Asientos_Disponibles (numero_asiento, clase, id_vuelo) VALUES ('10B', 'Business', 2);
-INSERT INTO Asientos_Disponibles (numero_asiento, clase, id_vuelo) VALUES ('7C', 'First', 3);
-
--- Inserciones para la tabla Boletos_Vuelos
-INSERT INTO Boletos_Vuelos (codigo_boleto, fecha_emision, id_vuelo, id_cliente, id_asiento_disponible) VALUES ('AA100-001', '2024-09-01', 1, 1, 1);
-INSERT INTO Boletos_Vuelos (codigo_boleto, fecha_emision, id_vuelo, id_cliente, id_asiento_disponible) VALUES ('UA200-002', '2024-09-02', 2, 2, 2);
-INSERT INTO Boletos_Vuelos (codigo_boleto, fecha_emision, id_vuelo, id_cliente, id_asiento_disponible) VALUES ('DL300-003', '2024-09-03', 3, 3, 3);
+-- Asignar cupones a los tickets y asientos disponibles
+INSERT INTO Coupon (Date_of_Redemption, Class, Standby, Meal_Code, Ticketing_Code, Available_Seat_id, Flight_id)
+SELECT
+    DATEADD(DAY, ABS(CHECKSUM(NEWID())) % 730, GETDATE()), -- Fecha de redención
+    CASE (ABS(CHECKSUM(NEWID())) % 3)
+        WHEN 0 THEN 'Economy'
+        WHEN 1 THEN 'Business'
+        ELSE 'First'
+    END,
+    CASE (ABS(CHECKSUM(NEWID())) % 2)
+        WHEN 0 THEN 'Yes'
+        ELSE 'No'
+    END,
+    ABS(CHECKSUM(NEWID())) % 10, -- Código de comida
+    ROW_NUMBER() OVER (ORDER BY (SELECT NULL)), -- Código de ticket
+    AS.id, -- Asiento disponible
+    F.id -- Vuelo
+FROM Ticket T
+JOIN Available_Seat AS ON AS.estado = 'disponible'
+JOIN Flight F ON F.id = AS.Flight_id;
 
