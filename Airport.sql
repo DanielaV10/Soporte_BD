@@ -137,90 +137,186 @@ CREATE TABLE Pieces_of_Luggage (
     FOREIGN KEY (Coupon_id) REFERENCES Coupon(id) 
         ON DELETE NO ACTION ON UPDATE NO ACTION -- Cambiado a NO ACTION para evitar ciclos
 );
+-- MODIFICACION 1/*/*/*/*/**/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/**/*/*/
+--##################################################################################################
 
--- Tabla: Aerolineas
+-- Tabla: Clasificación_Pasajeros
+CREATE TABLE Clasificacion_Pasajeros (
+    id_clasificacion INT IDENTITY(1,1) PRIMARY KEY,
+    Nivel VARCHAR(8) NOT NULL CHECK (Nivel IN ('Diamante', 'Platino', 'Oro', 'Plata','Ninguno')), -- Niveles predefinidos
+    Fecha_Clasificacion DATE NOT NULL CHECK (Fecha_Clasificacion <= GETDATE()), -- Fecha de clasificación debe ser en el pasado o presente
+	id_Customer INT,
+	FOREIGN KEY (id_Customer) REFERENCES Customer(id)
+   ON DELETE CASCADE ON UPDATE CASCADE -- Evita ciclos;
+);
+-- PROCEDIMIENTO ALMACENADO Y TRIGGERS NECESARIO
+-- PA para calcular las millas de cada cliente con la tabla Frequent_Flyer_Card
+go
+CREATE FUNCTION dbo.CalcularMillasTotales(@id_clasificacion INT)
+RETURNS INT
+AS
+BEGIN
+    DECLARE @total_millas INT;
+    
+    SELECT @total_millas = SUM(Miles)
+    FROM Frequent_Flyer_Card f, Clasificacion_Pasajeros c, Customer cu
+    WHERE c.id_clasificacion=@id_clasificacion and cu.id=c.id_Customer and f.Customer_id=cu.id
+    RETURN ISNULL(@total_millas, 0); -- Retorna 0 si no hay millas registradas
+END;
+go
+go
+--trigger para actualizar la membresia del cliente en la clasifiacion
+CREATE TRIGGER dbo.Trigger_ActualizarClasificacion
+ON Frequent_Flyer_Card
+AFTER INSERT
+AS
+BEGIN
+    DECLARE @id_clasificacion INT;
+    DECLARE @total_millas INT;
+    DECLARE @nuevo_nivel VARCHAR(8);
+
+    -- Obtener el id_clasificacion del registro insertado
+	DECLARE @FFC_Number INT;
+	SELECT @FFC_Number = i.FFC_Number
+	FROM INSERTED i;
+
+	DECLARE @Customer_id INT;
+	SELECT @Customer_id = c.id
+	FROM  Customer  c, Frequent_Flyer_Card f
+	WHERE  f.FFC_Number=@FFC_Number and f.Customer_id=c.id ;
+	select * from Customer
+	SELECT @id_clasificacion = c.id_clasificacion
+	FROM  Clasificacion_Pasajeros c  
+	WHERE c.id_Customer=@Customer_id 
+
+    -- Calcular la suma total de millas para ese id_clasificacion
+    SET @total_millas = dbo.CalcularMillasTotales(@id_clasificacion);
+
+    -- Determinar el nuevo nivel basado en las millas
+    IF @total_millas >= 200000
+        SET @nuevo_nivel = 'Diamante';
+    ELSE IF @total_millas >= 150000
+        SET @nuevo_nivel = 'Platino';
+    ELSE IF @total_millas >= 100000
+        SET @nuevo_nivel = 'Oro';
+    ELSE IF @total_millas >= 70000
+        SET @nuevo_nivel = 'Plata';
+    ELSE
+        SET @nuevo_nivel = 'Ninguno'; -- Opcional, puede dejarlo vacío si no aplica un nivel específico
+
+    -- Actualizar la tabla Clasificacion_Pasajeros con el nuevo nivel
+    UPDATE Clasificacion_Pasajeros
+    SET Nivel = @nuevo_nivel
+    WHERE id_clasificacion = @id_clasificacion;
+END;
+go
+
+-- MODIFICACION 2/*/*/*/*/**/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/**/*/*/
+--##################################################################################################
 CREATE TABLE Aerolineas (
     id_aerolinea INT IDENTITY(1,1) PRIMARY KEY,
     nombre NVARCHAR(200) NOT NULL CHECK (nombre LIKE '%[A-Za-z0-9 ]%'), -- Permite letras, números y espacios
     codigo_icao CHAR(3) NOT NULL CHECK (codigo_icao LIKE '[A-Z][A-Z][A-Z]'), -- Exactamente 3 letras mayúsculas
     pais NVARCHAR(200) NOT NULL CHECK (pais LIKE '%[A-Za-z ]%') -- Solo permite letras y espacios
 );
+-- SE AÑADIRA EL ATRIBUTO ID_AIRLINE EN LA TABLA AIRPLANE para ver el avion a que aerolinea pertenece
+-- Tabla: Aerolineas
+ALTER TABLE Airplane
+ADD id_airline INT NOT NULL;
+alter table Airplane
+add constraint fkairplane
+foreign key (id_airline) references Aerolineas(id_aerolinea);
 
--- Tabla: Aviones
-CREATE TABLE Aviones (
-    id_avion INT IDENTITY(1,1) PRIMARY KEY,
-    modelo NVARCHAR(200) NOT NULL CHECK (modelo LIKE '%[A-Za-z0-9 ]%'), -- Permite letras, números y espacios
-    capacidad INT NOT NULL CHECK (capacidad > 0), -- La capacidad debe ser positiva
-    id_aerolinea INT,
-    FOREIGN KEY (id_aerolinea) REFERENCES Aerolineas(id_aerolinea) 
-        ON DELETE NO ACTION ON UPDATE NO ACTION -- Cambiado a NO ACTION para evitar ciclos
-);
-
--- Tabla: Pilotos
-CREATE TABLE Pilotos (
-    id_piloto INT IDENTITY(1,1) PRIMARY KEY,
+-- Tabla: tripulante
+CREATE TABLE Tripulante (
+    id_tripulante INT IDENTITY(1,1) PRIMARY KEY,
     nombre NVARCHAR(200) NOT NULL CHECK (nombre LIKE '%[A-Za-z ]%'), -- Solo permite letras y espacios
+	profesion NVARCHAR(200) NOT NULL CHECK (profesion LIKE '%[A-Za-z ]%'), -- Solo permite letras y espacios
     licencia NVARCHAR(50) NOT NULL CHECK (licencia LIKE '%[A-Za-z0-9 ]%'), -- Permite letras, números y espacios
+	horas_de_vuelo INT NOT NULL check(horas_de_vuelo>=0), --permite solo numeros positivos
     id_aerolinea INT,
     FOREIGN KEY (id_aerolinea) REFERENCES Aerolineas(id_aerolinea) 
         ON DELETE NO ACTION ON UPDATE NO ACTION -- Cambiado a NO ACTION para evitar ciclos
 );
 
--- Tabla: Tripulacion
+-- Tabla: tripulacion
 CREATE TABLE Tripulacion (
     id_tripulacion INT IDENTITY(1,1) PRIMARY KEY,
-    nombre NVARCHAR(200) NOT NULL CHECK (nombre LIKE '%[A-Za-z ]%'), -- Solo permite letras y espacios
-    id_aerolinea INT,
-    FOREIGN KEY (id_aerolinea) REFERENCES Aerolineas(id_aerolinea) 
-        ON DELETE NO ACTION ON UPDATE NO ACTION -- Cambiado a NO ACTION para evitar ciclos
-);
-
--- Tabla: Vuelos
-CREATE TABLE Vuelos (
-    id_vuelo INT IDENTITY(1,1) PRIMARY KEY,
-    numero_vuelo NVARCHAR(50) NOT NULL CHECK (numero_vuelo LIKE '%[A-Za-z0-9 ]%'), -- Permite letras, números y espacios
-    fecha DATE NOT NULL CHECK (fecha >= GETDATE()), -- La fecha debe ser presente o futura
-    hora TIME NOT NULL,
-    origen NVARCHAR(200) NOT NULL CHECK (origen LIKE '%[A-Za-z0-9 ]%'), -- Permite letras, números y espacios
-    destino NVARCHAR(200) NOT NULL CHECK (destino LIKE '%[A-Za-z0-9 ]%'), -- Permite letras, números y espacios
-    id_avion INT,
-    id_piloto INT,
-    FOREIGN KEY (id_avion) REFERENCES Aviones(id_avion) 
+    id_tripulante INT NOT NULL , -- de la tabla tripulante
+    id_Flight INT NOT NULL , -- de la tabla vuelo
+    FOREIGN KEY (id_tripulante) REFERENCES Tripulante(id_tripulante) 
         ON DELETE NO ACTION ON UPDATE NO ACTION, -- Cambiado a NO ACTION para evitar ciclos
-    FOREIGN KEY (id_piloto) REFERENCES Pilotos(id_piloto) 
+    FOREIGN KEY (id_Flight) REFERENCES Flight(id) 
         ON DELETE NO ACTION ON UPDATE NO ACTION -- Cambiado a NO ACTION para evitar ciclos
 );
 
--- Tabla: Asientos Disponibles en Vuelos
-CREATE TABLE Asientos_Disponibles (
-    id_asiento_disponible INT IDENTITY(1,1) PRIMARY KEY,
-    numero_asiento NVARCHAR(10) NOT NULL CHECK (numero_asiento LIKE '%[A-Za-z0-9 ]%'), -- Permite letras, números y espacios
-    clase NVARCHAR(50) NOT NULL CHECK (clase IN ('Economy', 'Business', 'First')), -- Clases predefinidas
-    id_vuelo INT,
-    FOREIGN KEY (id_vuelo) REFERENCES Vuelos(id_vuelo) 
-        ON DELETE NO ACTION ON UPDATE NO ACTION -- Cambiado a NO ACTION para evitar ciclos
-);
+-- AÑADIMOS el atributo ESTADO EN LA TABLA seat(ASIENTO) la condicion de los asiento para ver si se pueden USAR
+ALTER TABLE seat
+add estado varchar(20) check (estado in('disponible','mantenimiento')); --estados predefinidos;
+-- AÑADIMOS el atributo ESTADO EN LA TABLA Available_Seat(Asientos disponibles) son los asientos en buen estado que estan disponibles para su uso
+ALTER TABLE Available_Seat
+add estado varchar(20) check (estado in('disponible','ocupado')); --estados predefinidos;
 
--- Tabla: Boletos en Vuelos
-CREATE TABLE Boletos_Vuelos (
-    id_boleto INT IDENTITY(1,1) PRIMARY KEY,
-    codigo_boleto NVARCHAR(50) NOT NULL CHECK (codigo_boleto LIKE '%[A-Za-z0-9 ]%'), -- Permite letras, números y espacios
-    fecha_emision DATE NOT NULL CHECK (fecha_emision <= GETDATE()), -- La fecha de emisión debe ser en el pasado o presente
-    id_vuelo INT,
-    id_cliente INT,
-    id_asiento_disponible INT,
-    FOREIGN KEY (id_vuelo) REFERENCES Vuelos(id_vuelo) 
-        ON DELETE NO ACTION ON UPDATE NO ACTION, -- Cambiado a NO ACTION para evitar ciclos
-    FOREIGN KEY (id_cliente) REFERENCES Customer(id) 
-        ON DELETE NO ACTION ON UPDATE NO ACTION, -- Cambiado a NO ACTION para evitar ciclos
-    FOREIGN KEY (id_asiento_disponible) REFERENCES Asientos_Disponibles(id_asiento_disponible) 
-        ON DELETE NO ACTION ON UPDATE NO ACTION -- Cambiado a NO ACTION para evitar ciclos
-);
+--CREAMOS UNA TABLA TRAMO MAYOR DONDE SE COLOCARAN EL DESTINO Y ORIGEN PRINCIPAL DE CADA VUELO
+create table Tramo_mayor(
+id int identity  (1,1) not null primary key,
+origen int not null,
+destino int not null,
+duracion time not null,
+distancia int not null, --distancia en km o millas
+foreign key (origen) references Airport(id),
+foreign key (destino) references Airport(id)
+)
 
+--CREAMOS LA TABLA NUMERO DE TRAMO,ESTA TABLA INDICA EN QUE TRAMO REALIZO EL VUELO
+create table Numero_tramo(
+id int identity(1,1) not null primary key,
+numero tinyint not null check(numero>0),
+id_tramoMayor int not null,
+foreign key (id_tramoMayor) references Tramo_mayor(id)
+on delete  cascade on update  cascade
+)
 
+--AHORA AÑADIMOS LAS COLUMNAS FORANEAS TRAMO Y NUMERO DE TRAMO EN LA TABLA Flight (vuelo) 
+alter table Flight
+add id_tramo int not null,id_numeroTramo int not null;
 
+alter table Flight
+add constraint tramox
+foreign key (id_tramo) references Tramo_mayor(id);
 
+alter table Flight
+add constraint tramoy
+foreign key (id_numeroTramo) references Numero_tramo(id);
 
+--CREAMOS UNA TABLA TRAMO Menor DONDE SE COLOCARAN EL DESTINO Y ORIGEN QUE SE ENCUENTRAN DENTRO DE UN TRAMO MAYOR ESPECIFICO
+create table tramo_menor(
+id int identity  (1,1) not null primary key,
+origen int not null,
+destino int not null,
+duracion time not null,
+distancia int not null, --distancia en km o millas
+orden tinyint not null check (orden>0),
+id_numeroTramo int not null,
+foreign key (origen) references Airport(id),
+foreign key (destino) references Airport(id),
+foreign key (id_numeroTramo) references Numero_tramo(id)
+on delete  cascade on update  cascade -- si se elimina una fila de la tabla numeroTramo, no es necesario tener los tramos menores
+)
+
+-- CREAMOS LA TABLA TICKET-TRANSFER - en el contexto de documentacion // cuando el comprador vende o se lo compra a otra pasajero
+create table Ticker_Transfer(
+id int not null identity(1,1) primary key,
+id_ticket int not null,
+id_comprador int not null,
+id_pasajero int not null,
+foreign key (id_ticket) references Ticket(Ticketing_Code)
+on delete cascade on update cascade,
+foreign key (id_comprador) references Customer(id)
+on delete no action on update no action,
+foreign key (id_pasajero) references Customer(id)
+on delete no action on update no action,
+)
 --------------------------------------------------- INSERTS PARA CADA TABLA ------------------------------------------------------------------------
 -- Inserciones para la tabla Customer
 INSERT INTO Customer (Date_of_Birth, Name) VALUES ('1985-06-15', 'Juan Pérez');
