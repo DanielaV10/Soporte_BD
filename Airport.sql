@@ -1,7 +1,13 @@
+--CODIGO PARA BORRAR BASE DE DATOS
 USE master;
 ALTER DATABASE airport SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
 drop database airport;
 
+------------------------------------------------------------------------------------------------------------------------------
+-- Martínez Balderrama Aarón 221044957
+-- 
+-- 
+--INICIO DE LA BASE DE DATOS
 create database airport;
 use airport;
 
