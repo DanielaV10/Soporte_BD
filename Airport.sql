@@ -1,495 +1,552 @@
--- GRUPO
--- Estudiante: Martínez Balderrama Aarón 
--- Reg: 221044957
+USE master;
+ALTER DATABASE airport SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+drop database airport;
 
--- Estudiante: Bartolome Ramos Hans Angelo 
--- Reg: 213037114
+create database airport;
+use airport;
 
--- Estudiante: Vidal Lopez Daniela
--- Reg: 214058840
-
-
--- Creación de la base de datos
-CREATE DATABASE airport;
-USE airport;
-
--- Tabla: Customer (Clientes)
-CREATE TABLE Customer (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    Date_of_Birth DATE NOT NULL CHECK (Date_of_Birth <= GETDATE()), -- La fecha de nacimiento debe ser en el pasado
-    Name VARCHAR(200) NOT NULL CHECK (Name LIKE '%[A-Za-z ]%') -- Solo permite letras y espacios
+-- 1. Cliente
+create table Cliente(
+    id_cliente int identity(1,1) primary key,
+    Fecha_de_Nacimiento date not null,
+    Nombre varchar(100) not null
 );
 
--- Tabla: Airport (Aeropuertos)
-CREATE TABLE Airport (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    Name VARCHAR(200) NOT NULL CHECK (Name LIKE '%[A-Za-z0-9 ]%') -- Permite letras, números y espacios
+-- 2. Aeropuerto
+create table Aeropuerto(
+    id_aereopuerto int identity(1,1) primary key,
+    Nombre varchar(100) not null
 );
 
--- Tabla: Plane_Model (Modelos de Aviones)
-CREATE TABLE Plane_Model (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    Description VARCHAR(200) NOT NULL CHECK (Description LIKE '%[A-Za-z0-9 ]%'), -- Permite letras, números y espacios
-    Graphic VARCHAR(200) NOT NULL
+-- 3. Modelo de Avion
+create table Modelo_Avion(
+    id_modelo_avion int identity(1,1) primary key,
+    Descripcion varchar(100) not null,
+    Grafico varchar(100) not null
 );
 
--- Tabla: Frequent_Flyer_Card (Tarjetas de Viajero Frecuente)
-CREATE TABLE Frequent_Flyer_Card (
-    FFC_Number INT IDENTITY(1,1) PRIMARY KEY,
-    Miles INT NOT NULL CHECK (Miles >= 0), -- Las millas deben ser no negativas
-    Meal_Code INT NOT NULL CHECK (Meal_Code >= 0), -- El código de comida debe ser no negativo
-    Customer_id INT NOT NULL,
-    FOREIGN KEY (Customer_id) REFERENCES Customer(id) 
-        ON DELETE CASCADE ON UPDATE CASCADE -- Eliminación y actualización en cascada
+-- 4. Avion
+create table Avion(
+    id_Numero_Registro int identity(1,1) primary key,
+    Inicio_de_Operacion date not null,
+    Estado varchar(100) not null,
+    Modelo_Avion_id int not null,
+    foreign key (Modelo_Avion_id) references Modelo_Avion(id_modelo_avion)
 );
 
--- Tabla: Airplane (Aviones)
-CREATE TABLE Airplane (
-    Registration_Number INT IDENTITY(1,1) PRIMARY KEY,
-    Begin_of_Operation DATE NOT NULL CHECK (Begin_of_Operation <= GETDATE()), -- La fecha debe ser en el pasado o presente
-    Status VARCHAR(200) NOT NULL CHECK (Status IN ('Operational', 'Maintenance', 'Decommissioned')), -- Valores limitados
-    Plane_Model_id INT NULL, -- Permitir valores nulos
-    FOREIGN KEY (Plane_Model_id) REFERENCES Plane_Model(id) 
-        ON DELETE SET NULL ON UPDATE CASCADE -- Eliminación en cascada establece NULL, actualización en cascada
+-- 5. Numero de Vuelo
+create table Numero_Vuelo(
+    id_numero_vuelo int identity(1,1) primary key,
+    Hora_Salida time not null,
+    Descripcion varchar(100) not null,
+    Tipo bit not null,
+    Aerolinea varchar(100) not null,
+    Aeropuerto_Inicio int not null,
+    Aeropuerto_Destino int not null,
+    foreign key (Aeropuerto_Inicio) references Aeropuerto(id_aereopuerto),
+    foreign key (Aeropuerto_Destino) references Aeropuerto(id_aereopuerto)
 );
 
--- Tabla: Flight_Number (Números de Vuelo)
-CREATE TABLE Flight_Number (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    Departure_Time TIME NOT NULL,
-    Description VARCHAR(200) NOT NULL CHECK (Description LIKE '%[A-Za-z0-9 ]%'), -- Permite letras, números y espacios
-    Type BIT NOT NULL CHECK (Type IN (0, 1)), -- Tipo debe ser 0 o 1
-    Airline VARCHAR(200) NOT NULL,
-    Airport_Start INT NOT NULL,
-    Airport_Goal INT NOT NULL,
-    FOREIGN KEY (Airport_Start) REFERENCES Airport(id) 
-        ON DELETE NO ACTION ON UPDATE NO ACTION, -- Cambiado a NO ACTION para evitar ciclos
-    FOREIGN KEY (Airport_Goal) REFERENCES Airport(id) 
-        ON DELETE NO ACTION ON UPDATE NO ACTION -- Cambiado a NO ACTION para evitar ciclos
+-- 6. Vuelo
+create table Vuelo(
+    id_vuelo int identity(1,1) primary key,
+    Hora_Embarque time not null,
+    Fecha_Vuelo date not null,
+    Puerta tinyint not null,
+    Mostrador_Check_In bit not null,
+    Numero_Vuelo_id int not null,
+    foreign key (Numero_Vuelo_id) references Numero_Vuelo(id_numero_vuelo)
 );
 
--- Tabla: Ticket (Boletos)
-CREATE TABLE Ticket (
-    Ticketing_Code INT IDENTITY(1,1) PRIMARY KEY,
-    Number INT NOT NULL CHECK (Number > 0), -- Número de ticket debe ser positivo
-    Customer_id INT NOT NULL,
-    FOREIGN KEY (Customer_id) REFERENCES Customer(id) 
-        ON DELETE CASCADE ON UPDATE CASCADE -- Eliminación y actualización en cascada
+-- 7. Asiento
+create table Asiento(
+    id_asiento int identity(1,1) primary key,
+    Tamano int not null,
+    Numero int not null,
+    Ubicacion varchar(100) not null,
+    Modelo_Avion_id int not null,
+    foreign key (Modelo_Avion_id) references Modelo_Avion(id_modelo_avion)
 );
 
--- Tabla: Flight (Vuelos)
-CREATE TABLE Flight (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    Boarding_Time TIME NOT NULL,
-    Flight_Date DATE NOT NULL CHECK (Flight_Date >= GETDATE()), -- La fecha de vuelo debe ser presente o futura
-    Gate TINYINT NOT NULL CHECK (Gate > 0), -- El número de puerta debe ser positivo
-    Check_In_Counter BIT NOT NULL CHECK (Check_In_Counter IN (0, 1)), -- Valor binario
-    Flight_Number_id INT NOT NULL,
-    FOREIGN KEY (Flight_Number_id) REFERENCES Flight_Number(id) 
-        ON DELETE NO ACTION ON UPDATE NO ACTION -- Cambiado a NO ACTION para evitar ciclos
+-- 8. Asiento Disponible
+create table Asiento_Disponible(
+    id_asiento_disponible int identity(1,1) primary key,
+    Vuelo_id int not null,
+    Asiento_id int not null,
+    foreign key (Vuelo_id) references Vuelo(id_vuelo),
+    foreign key (Asiento_id) references Asiento(id_asiento)
 );
 
--- Tabla: Seat (Asientos)
-CREATE TABLE Seat (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    Size INT NOT NULL CHECK (Size > 0), -- El tamaño debe ser positivo
-    Number INT NOT NULL CHECK (Number > 0), -- El número de asiento debe ser positivo
-    Location VARCHAR(200) NOT NULL,
-    Plane_Model_id INT NOT NULL,
-    FOREIGN KEY (Plane_Model_id) REFERENCES Plane_Model(id) 
-        ON DELETE NO ACTION ON UPDATE NO ACTION -- Cambiado a NO ACTION para evitar ciclos
+-- 9. Reserva
+create table Reserva(
+    id_reserva int identity(1,1) primary key,
+    Cliente_id int not null,
+    Fecha_Reserva date not null,
+    foreign key (Cliente_id) references Cliente(id_cliente)
 );
 
--- Tabla: Available_Seat (Asientos Disponibles)
-CREATE TABLE Available_Seat (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    Flight_id INT NOT NULL,
-    Seat_id INT NOT NULL,
-    FOREIGN KEY (Flight_id) REFERENCES Flight(id) 
-        ON DELETE NO ACTION ON UPDATE NO ACTION, -- Cambiado a NO ACTION para evitar ciclos
-    FOREIGN KEY (Seat_id) REFERENCES Seat(id) 
-        ON DELETE NO ACTION ON UPDATE NO ACTION -- Cambiado a NO ACTION para evitar ciclos
+-- 10. Boleto
+create table Boleto(
+    id_Codigo_Boleto int identity(1,1) primary key,
+    Numero int not null,
+    Cliente_id int not null,
+    Reserva_id int null,
+    foreign key (Cliente_id) references Cliente(id_cliente),
+    foreign key (Reserva_id) references Reserva(id_reserva)
 );
 
--- Tabla: Coupon (Cupones)
-CREATE TABLE Coupon (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    Date_of_Redemption DATE NOT NULL CHECK (Date_of_Redemption >= GETDATE()), -- La fecha de redención debe ser presente o futura
-    Class VARCHAR(200) NOT NULL CHECK (Class IN ('Economy', 'Business', 'First')), -- Clases predefinidas
-    Standby VARCHAR(200) NOT NULL CHECK (Standby IN ('Yes', 'No')), -- Standby debe ser 'Yes' o 'No'
-    Meal_Code INT NOT NULL CHECK (Meal_Code >= 0), -- El código de comida debe ser no negativo
-    Ticketing_Code INT NOT NULL,
-    Available_Seat_id INT NOT NULL,
-    Flight_id INT NOT NULL,
-    FOREIGN KEY (Ticketing_Code) REFERENCES Ticket(Ticketing_Code) 
-        ON DELETE NO ACTION ON UPDATE NO ACTION, -- Cambiado a NO ACTION para evitar ciclos
-    FOREIGN KEY (Available_Seat_id) REFERENCES Available_Seat(id) 
-        ON DELETE NO ACTION ON UPDATE NO ACTION, -- Cambiado a NO ACTION para evitar ciclos
-    FOREIGN KEY (Flight_id) REFERENCES Flight(id) 
-        ON DELETE NO ACTION ON UPDATE NO ACTION -- Cambiado a NO ACTION para evitar ciclos
+-- 21. Escalas TABLA A�ADIDA RESEINTEMENTE
+create table Escala (
+    id_escala int identity(1,1) primary key, -- Identificador �nico de la escala
+    id_boleto int not null,                   -- Boleto al que pertenece la escala
+    id_vuelo int not null,                    -- Vuelo espec�fico de esta escala
+    Orden tinyint not null,                   -- Orden de la escala dentro del trayecto (1 para el primer vuelo, 2 para el segundo, etc.)
+    foreign key (id_boleto) references Boleto(id_Codigo_Boleto),
+    foreign key (id_vuelo) references Vuelo(id_vuelo)
 );
 
--- Tabla: Pieces_of_Luggage (Piezas de Equipaje)
-CREATE TABLE Pieces_of_Luggage (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    Number INT NOT NULL CHECK (Number > 0), -- El número de piezas debe ser positivo
-    Weight INT NOT NULL CHECK (Weight > 0), -- El peso debe ser positivo
-    Coupon_id INT NOT NULL,
-    FOREIGN KEY (Coupon_id) REFERENCES Coupon(id) 
-        ON DELETE NO ACTION ON UPDATE NO ACTION -- Cambiado a NO ACTION para evitar ciclos
+-- 11. Cupon
+create table Cupon(
+    id_cupon int identity(1,1) primary key,
+    Fecha_Redencion date not null,
+    Clase varchar(100) not null,
+    Standby varchar(100) not null,
+    Codigo_Comida int not null,
+    Codigo_Boleto int not null,
+    Asiento_Disponible_id int not null,
+    Vuelo_id int not null,
+    Checkin_Hora time, -- Se agreg� el campo para el check-in
+    Checkin_Fecha date, -- Se agreg� el campo para el check-in
+    foreign key (Codigo_Boleto) references Boleto(id_Codigo_Boleto),
+    foreign key (Asiento_Disponible_id) references Asiento_Disponible(id_asiento_disponible),
+    foreign key (Vuelo_id) references Vuelo(id_vuelo)
 );
--- MODIFICACION 1/*/*/*/*/**/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/**/*/*/
---##################################################################################################
 
--- Tabla: Clasificación_Pasajeros
-CREATE TABLE Clasificacion_Pasajeros (
-    id_clasificacion INT IDENTITY(1,1) PRIMARY KEY,
-    Nivel VARCHAR(8) NOT NULL CHECK (Nivel IN ('Diamante', 'Platino', 'Oro', 'Plata','Ninguno')), -- Niveles predefinidos
-    Fecha_Clasificacion DATE NOT NULL CHECK (Fecha_Clasificacion <= GETDATE()), -- Fecha de clasificación debe ser en el pasado o presente
-	id_Customer INT,
-	FOREIGN KEY (id_Customer) REFERENCES Customer(id)
-   ON DELETE CASCADE ON UPDATE CASCADE -- Evita ciclos;
+-- 12. Piezas de Equipaje
+create table Piezas_de_Equipaje(
+    id_piezas_equipaje int identity(1,1) primary key,
+    Numero int not null,
+    Peso int not null,
+    Cupon_id int not null,
+    foreign key (Cupon_id) references Cupon(id_cupon)
 );
--- PROCEDIMIENTO ALMACENADO Y TRIGGERS NECESARIO
--- PA para calcular las millas de cada cliente con la tabla Frequent_Flyer_Card
-go
-CREATE FUNCTION dbo.CalcularMillasTotales(@id_clasificacion INT)
-RETURNS INT
+
+-- 13. Tarjeta Viajero Frecuente
+create table Tarjeta_Viajero_Frecuente(
+    id_Numero_Tarjeta int identity(1,1) primary key,
+    Millas int not null,
+    Codigo_Comida int not null,
+    Cliente_id int not null,
+    foreign key (Cliente_id) references Cliente(id_cliente)
+);
+
+-- 14. Documentacion
+create table Documentacion(
+    id_documentacion int identity(1,1) primary key,
+    Tipo_Documento varchar(100) not null,
+    Numero_Documento varchar(100) not null,
+    id_boleto int not null,
+    foreign key (id_boleto) references Boleto(id_Codigo_Boleto)
+);
+
+-- 15. Rol de Tripulaci�n
+create table Rol(
+    id_rol int identity(1,1) primary key,
+    Descripcion varchar(100) not null
+);
+
+-- 16. Tripulaci�n
+create table Tripulacion(
+    id_tripulacion int identity(1,1) primary key,
+    Nombre varchar(100) not null,
+    Cargo varchar(100) not null
+);
+
+-- 17. Tripulaci�n en Vuelo
+create table Tripulacion_Vuelo(
+    Vuelo_id int not null,
+    Tripulacion_id int not null,
+    Rol_id int not null,
+    foreign key (Vuelo_id) references Vuelo(id_vuelo),
+    foreign key (Tripulacion_id) references Tripulacion(id_tripulacion),
+    foreign key (Rol_id) references Rol(id_rol),
+    primary key (Vuelo_id, Tripulacion_id, Rol_id)
+);
+
+-- 18. Avion en Vuelo (nueva tabla para asignaci�n de aeronaves a cada vuelo)
+create table Avion_Vuelo(
+    id_avion_vuelo int identity(1,1) primary key,
+    id_vuelo int not null,
+    id_numero_registro int not null, -- Asociado a la aeronave espec�fica
+    foreign key (id_vuelo) references Vuelo(id_vuelo),
+    foreign key (id_numero_registro) references Avion(id_Numero_Registro)
+);
+
+-- 19. Cancelaci�n
+create table Cancelacion(
+    id_cancelacion int identity(1,1) primary key,
+    Tipo_Cancelacion varchar(100) not null,
+    Fecha_Cancelacion date not null,
+    Motivo varchar(255) not null,
+    id_reserva int, -- Si es una cancelaci�n de reserva
+    id_vuelo int,   -- Si es una cancelaci�n de vuelo
+    foreign key (id_reserva) references Reserva(id_reserva),
+    foreign key (id_vuelo) references Vuelo(id_vuelo)
+);
+
+-- 20. Multa por Cancelaci�n
+create table Multa_Cancelacion(
+    id_multa int identity(1,1) primary key,
+    id_cancelacion int not null,
+    Monto decimal(10,2) not null,
+    Fecha_Pago date,
+    foreign key (id_cancelacion) references Cancelacion(id_cancelacion)
+);
+-------------------------------------------PROCESOS ALMACENADOS------------------------------------------------------------------
+CREATE PROCEDURE CrearReservaConBoleto
+    @Cliente_id INT,
+    @Fecha_Reserva DATE,
+    @NumeroBoletos INT  -- Cantidad de boletos que se quieren reservar
 AS
 BEGIN
-    DECLARE @total_millas INT;
-    
-    SELECT @total_millas = SUM(Miles)
-    FROM Frequent_Flyer_Card f, Clasificacion_Pasajeros c, Customer cu
-    WHERE c.id_clasificacion=@id_clasificacion and cu.id=c.id_Customer and f.Customer_id=cu.id
-    RETURN ISNULL(@total_millas, 0); -- Retorna 0 si no hay millas registradas
-END;
-go
-go
---trigger para actualizar la membresia del cliente en la clasifiacion
-CREATE TRIGGER dbo.Trigger_ActualizarClasificacion
-ON Frequent_Flyer_Card
-AFTER INSERT
-AS
-BEGIN
-    DECLARE @id_clasificacion INT;
-    DECLARE @total_millas INT;
-    DECLARE @nuevo_nivel VARCHAR(8);
-
-    -- Obtener el id_clasificacion del registro insertado
-	DECLARE @FFC_Number INT;
-	SELECT @FFC_Number = i.FFC_Number
-	FROM INSERTED i;
-
-	DECLARE @Customer_id INT;
-	SELECT @Customer_id = c.id
-	FROM  Customer  c, Frequent_Flyer_Card f
-	WHERE  f.FFC_Number=@FFC_Number and f.Customer_id=c.id ;
-	select * from Customer
-	SELECT @id_clasificacion = c.id_clasificacion
-	FROM  Clasificacion_Pasajeros c  
-	WHERE c.id_Customer=@Customer_id 
-
-    -- Calcular la suma total de millas para ese id_clasificacion
-    SET @total_millas = dbo.CalcularMillasTotales(@id_clasificacion);
-
-    -- Determinar el nuevo nivel basado en las millas
-    IF @total_millas >= 200000
-        SET @nuevo_nivel = 'Diamante';
-    ELSE IF @total_millas >= 150000
-        SET @nuevo_nivel = 'Platino';
-    ELSE IF @total_millas >= 100000
-        SET @nuevo_nivel = 'Oro';
-    ELSE IF @total_millas >= 70000
-        SET @nuevo_nivel = 'Plata';
+    -- Verificar que haya suficientes boletos disponibles
+    IF (SELECT COUNT(*) FROM Boleto WHERE Reserva_id IS NULL) >= @NumeroBoletos
+    BEGIN
+        -- Insertar nueva reserva
+        INSERT INTO Reserva (Cliente_id, Fecha_Reserva)
+        VALUES (@Cliente_id, @Fecha_Reserva);
+        
+        DECLARE @Reserva_id INT = SCOPE_IDENTITY();  -- Obtener el ID de la reserva creada
+        
+        -- Asignar boletos a la reserva
+        UPDATE TOP (@NumeroBoletos) Boleto
+        SET Reserva_id = @Reserva_id
+        WHERE Reserva_id IS NULL;
+    END
     ELSE
-        SET @nuevo_nivel = 'Ninguno'; -- Opcional, puede dejarlo vacío si no aplica un nivel específico
-
-    -- Actualizar la tabla Clasificacion_Pasajeros con el nuevo nivel
-    UPDATE Clasificacion_Pasajeros
-    SET Nivel = @nuevo_nivel
-    WHERE id_clasificacion = @id_clasificacion;
+    BEGIN
+        RAISERROR ('No hay suficientes boletos disponibles para realizar la reserva.', 16, 1);
+    END
 END;
-go
-
--- MODIFICACION 2/*/*/*/*/**/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/**/*/*/
---##################################################################################################
-CREATE TABLE Aerolineas (
-    id_aerolinea INT IDENTITY(1,1) PRIMARY KEY,
-    nombre NVARCHAR(200) NOT NULL CHECK (nombre LIKE '%[A-Za-z0-9 ]%'), -- Permite letras, números y espacios
-    codigo_icao CHAR(3) NOT NULL CHECK (codigo_icao LIKE '[A-Z][A-Z][A-Z]'), -- Exactamente 3 letras mayúsculas
-    pais NVARCHAR(200) NOT NULL CHECK (pais LIKE '%[A-Za-z ]%') -- Solo permite letras y espacios
-);
--- SE AÑADIRA EL ATRIBUTO ID_AIRLINE EN LA TABLA AIRPLANE para ver el avion a que aerolinea pertenece
--- Tabla: Aerolineas
-ALTER TABLE Airplane
-ADD id_airline INT NOT NULL;
-alter table Airplane
-add constraint fkairplane
-foreign key (id_airline) references Aerolineas(id_aerolinea);
-
--- Tabla: tripulacion
-CREATE TABLE Tripulacion (
-    id_tripulacion INT IDENTITY(1,1) PRIMARY KEY,
-    id_Flight INT NOT NULL , -- de la tabla vuelo
-    FOREIGN KEY (id_Flight) REFERENCES Flight(id) 
-        ON DELETE NO ACTION ON UPDATE NO ACTION -- Cambiado a NO ACTION para evitar ciclos
-);
-
--- Tabla para Profesión
-CREATE TABLE Profesion (
-    id INT IDENTITY(1,1) PRIMARY KEY,      -- Identificador único de la profesión
-    nombre VARCHAR(50) NOT NULL, -- Nombre de la profesión
-    fecha_fin DATE               -- Fecha de finalización (opcional)
-);
-
--- Tabla para Tripulante
-CREATE TABLE Tripulante (
-    cod INT IDENTITY(1,1) PRIMARY KEY,       -- Código único del tripulante
-    nombre VARCHAR(100) NOT NULL, -- Nombre del tripulante
-    edad INT,                     -- Edad del tripulante
-    id_tripulacion INT REFERENCES Tripulacion(id_tripulacion), -- Llave foránea a la tabla Tripulación
-    id_profesion INT REFERENCES Profesion(id) -- Llave foránea a la tabla Profesión
-);
 
 
 
--- AÑADIMOS el atributo ESTADO EN LA TABLA seat(ASIENTO) la condicion de los asiento para ver si se pueden USAR
-ALTER TABLE seat
-add estado varchar(20) check (estado in('disponible','mantenimiento')); --estados predefinidos;
--- AÑADIMOS el atributo ESTADO EN LA TABLA Available_Seat(Asientos disponibles) son los asientos en buen estado que estan disponibles para su uso
-ALTER TABLE Available_Seat
-add estado varchar(20) check (estado in('disponible','ocupado')); --estados predefinidos;
 
---CREAMOS UNA TABLA TRAMO MAYOR DONDE SE COLOCARAN EL DESTINO Y ORIGEN PRINCIPAL DE CADA VUELO
-create table Tramo_mayor(
-id int identity  (1,1) not null primary key,
-origen int not null,
-destino int not null,
-duracion time not null,
-distancia int not null, --distancia en km o millas
-foreign key (origen) references Airport(id),
-foreign key (destino) references Airport(id)
-)
 
---CREAMOS LA TABLA NUMERO DE TRAMO,ESTA TABLA INDICA EN QUE TRAMO REALIZO EL VUELO
-create table Numero_tramo(
-id int identity(1,1) not null primary key,
-numero tinyint not null check(numero>0),
-id_tramoMayor int not null,
-foreign key (id_tramoMayor) references Tramo_mayor(id)
-on delete  cascade on update  cascade
-)
 
---AHORA AÑADIMOS LAS COLUMNAS FORANEAS TRAMO Y NUMERO DE TRAMO EN LA TABLA Flight (vuelo) 
-alter table Flight
-add id_tramo int not null,id_numeroTramo int not null;
 
-alter table Flight
-add constraint tramox
-foreign key (id_tramo) references Tramo_mayor(id);
 
-alter table Flight
-add constraint tramoy
-foreign key (id_numeroTramo) references Numero_tramo(id);
 
---CREAMOS UNA TABLA TRAMO Menor DONDE SE COLOCARAN EL DESTINO Y ORIGEN QUE SE ENCUENTRAN DENTRO DE UN TRAMO MAYOR ESPECIFICO
-create table tramo_menor(
-id int identity  (1,1) not null primary key,
-origen int not null,
-destino int not null,
-duracion time not null,
-distancia int not null, --distancia en km o millas
-orden tinyint not null check (orden>0),
-id_numeroTramo int not null,
-foreign key (origen) references Airport(id),
-foreign key (destino) references Airport(id),
-foreign key (id_numeroTramo) references Numero_tramo(id)
-on delete  cascade on update  cascade -- si se elimina una fila de la tabla numeroTramo, no es necesario tener los tramos menores
-)
+-------------------------------------------INSERCIONES MASIVAS (ARRANQUE) PARTE #1-------------------------------------------------------
+-- Por favor inserten los datos paso por paso para evitar un error en la insercion
 
--- CREAMOS LA TABLA TICKET-TRANSFER - en el contexto de documentacion // cuando el comprador vende o se lo compra a otra pasajero
-create table Ticker_Transfer(
-id int not null identity(1,1) primary key,
-id_ticket int not null,
-id_comprador int not null,
-id_pasajero int not null,
-foreign key (id_ticket) references Ticket(Ticketing_Code)
-on delete cascade on update cascade,
-foreign key (id_comprador) references Customer(id)
-on delete no action on update no action,
-foreign key (id_pasajero) references Customer(id)
-on delete no action on update no action,
-)
---------------------------------------------------- INSERTS PARA CADA TABLA ------------------------------------------------------------------------
--- Crear 80,000 clientes
-INSERT INTO Customer (Date_of_Birth, Name)
-SELECT 
-    DATEADD(DAY, -1 * (ABS(CHECKSUM(NEWID())) % 20000), GETDATE()), -- Fecha de nacimiento entre hace 55 años y hoy
-    CONCAT('Cliente_', ROW_NUMBER() OVER (ORDER BY (SELECT NULL)))
-FROM (SELECT TOP (80000) * FROM sys.all_objects) AS Temp;
 
--- Asignar clasificación a cada cliente
-INSERT INTO Clasificacion_Pasajeros (Nivel, Fecha_Clasificacion, id_Customer)
-SELECT
-    'Ninguno', -- Nivel inicial
-    GETDATE(), -- Fecha actual
-    C.id
-FROM Customer C;
 
--- Asignar una tarjeta de viajero frecuente al 50% de los clientes
-INSERT INTO Frequent_Flyer_Card (Miles, Meal_Code, Customer_id)
-SELECT
-    ABS(CHECKSUM(NEWID())) % 100000, -- Millas acumuladas
-    ABS(CHECKSUM(NEWID())) % 10,     -- Código de comida
-    C.id
-FROM Customer C
-WHERE ABS(CHECKSUM(NEWID())) % 2 = 0;
+--PASO #1 Insercion de 5 modelos de avion, por lo general hay de 2 a 3 en los aereopuertos
+INSERT INTO Modelo_Avion (Descripcion, Grafico)
+VALUES 
+('Boeing 737', 'grafico_boeing737.png'),
+('Airbus A320', 'grafico_airbusa320.png'),
+('Embraer 190', 'grafico_embraer190.png'),
+('Boeing 787', 'grafico_boeing787.png'),
+('Airbus A350', 'grafico_airbusa350.png');
 
--- Crear 50 aeropuertos
-INSERT INTO Airport (Name)
-SELECT CONCAT('Aeropuerto_', ROW_NUMBER() OVER (ORDER BY (SELECT NULL)))
-FROM (SELECT TOP (50) * FROM sys.all_objects) AS Temp;
+-- Modelo_Avion
+DECLARE @i int = 1
+WHILE @i <= 10
+BEGIN
+    INSERT INTO Modelo_Avion (Descripcion, Grafico)
+    VALUES ('Modelo ' + CONVERT(varchar, @i), 'Grafico ' + CONVERT(varchar, @i))
+    SET @i = @i + 1
+END
 
--- Crear 10 aerolíneas
-INSERT INTO Aerolineas (nombre, codigo_icao, pais)
-SELECT 
-    CONCAT('Aerolínea_', ROW_NUMBER() OVER (ORDER BY (SELECT NULL))),
-    CHAR(65 + ((ROW_NUMBER() OVER (ORDER BY (SELECT NULL))) % 26)) + 
-    CHAR(65 + ((ROW_NUMBER() OVER (ORDER BY (SELECT NULL))) % 26)) + 
-    CHAR(65 + ((ROW_NUMBER() OVER (ORDER BY (SELECT NULL))) % 26)),
-    CONCAT('País_', ROW_NUMBER() OVER (ORDER BY (SELECT NULL)))
-FROM (SELECT TOP (10) * FROM sys.all_objects) AS Temp;
 
--- Crear 20 modelos de avión
-INSERT INTO Plane_Model (Description, Graphic)
-SELECT 
-    CONCAT('Modelo_', ROW_NUMBER() OVER (ORDER BY (SELECT NULL))),
-    CONCAT('Gráfico_', ROW_NUMBER() OVER (ORDER BY (SELECT NULL)))
-FROM (SELECT TOP (20) * FROM sys.all_objects) AS Temp;
 
--- Crear 100 aviones
-INSERT INTO Airplane (Begin_of_Operation, Status, Plane_Model_id, id_airline)
-SELECT
-    DATEADD(DAY, -1 * (ABS(CHECKSUM(NEWID())) % 1000), GETDATE()), -- Fecha entre hace ~3 años y hoy
-    CASE (ABS(CHECKSUM(NEWID())) % 3)
-        WHEN 0 THEN 'Operational'
-        WHEN 1 THEN 'Maintenance'
-        ELSE 'Decommissioned'
-    END,
-    ABS(CHECKSUM(NEWID())) % 20 + 1, -- ID de modelo de avión entre 1 y 20
-    ABS(CHECKSUM(NEWID())) % 10 + 1  -- ID de aerolínea entre 1 y 10
-FROM (SELECT TOP (100) * FROM sys.all_objects) AS Temp;
+-- Paso #2 insercion de 10 aereopuertos
+INSERT INTO Aeropuerto (Nombre)
+VALUES 
+('Aeropuerto Internacional de Ciudad de M�xico'),
+('Aeropuerto Internacional de Los �ngeles'),
+('Aeropuerto Internacional de Miami'),
+('Aeropuerto Internacional de Tokio'),
+('Aeropuerto Internacional de Par�s-Charles de Gaulle'),
+('Aeropuerto Internacional de Madrid-Barajas'),
+('Aeropuerto Internacional de Londres-Heathrow'),
+('Aeropuerto Internacional de Frankfurt'),
+('Aeropuerto Internacional de Dubai'),
+('Aeropuerto Internacional de Singapur-Changi');
 
--- Crear 2000 números de vuelo
-INSERT INTO Flight_Number (Departure_Time, Description, Type, Airline, Airport_Start, Airport_Goal)
-SELECT
-    CONVERT(TIME, DATEADD(MINUTE, ABS(CHECKSUM(NEWID())) % 1440, '00:00')), -- Hora aleatoria
-    CONCAT('Descripción vuelo_', ROW_NUMBER() OVER (ORDER BY (SELECT NULL))),
-    ABS(CHECKSUM(NEWID())) % 2, -- Tipo 0 o 1
-    A.nombre,
-    ABS(CHECKSUM(NEWID())) % 50 + 1, -- ID de aeropuerto de inicio
-    ABS(CHECKSUM(NEWID())) % 50 + 1  -- ID de aeropuerto de destino
-FROM (SELECT TOP (2000) * FROM sys.all_objects) AS Temp
-CROSS JOIN (SELECT id_aerolinea, nombre FROM Aerolineas) AS A;
+---- Tarjeta_Viajero_Frecuente
+DECLARE @i int = 1
+WHILE @i <= 200
+BEGIN
+    INSERT INTO Tarjeta_Viajero_Frecuente (Millas, Codigo_Comida, Cliente_id)
+    VALUES (ABS(CHECKSUM(NEWID())) % 10000, ABS(CHECKSUM(NEWID())) % 100, ABS(CHECKSUM(NEWID())) % 500 + 1)
+    SET @i = @i + 1
+END
 
--- Crear 100 tramos mayores
-INSERT INTO Tramo_mayor (origen, destino, duracion, distancia)
-SELECT
-    ABS(CHECKSUM(NEWID())) % 50 + 1, -- Aeropuerto origen
-    ABS(CHECKSUM(NEWID())) % 50 + 1, -- Aeropuerto destino
-    CONVERT(TIME, DATEADD(MINUTE, ABS(CHECKSUM(NEWID())) % 480 + 60, '00:00')), -- Duración entre 1 y 8 horas
-    ABS(CHECKSUM(NEWID())) % 10000 + 500 -- Distancia entre 500 y 10,500 km
-FROM (SELECT TOP (100) * FROM sys.all_objects) AS Temp;
+-- Rol
+DECLARE @i int = 1
+WHILE @i <= 5
+BEGIN
+    INSERT INTO Rol (Descripcion)
+    VALUES ('Rol ' + CONVERT(varchar, @i))
+    SET @i = @i + 1
+END
 
--- Crear 200 números de tramo
-INSERT INTO Numero_tramo (numero, id_tramoMayor)
-SELECT
-    ROW_NUMBER() OVER (ORDER BY (SELECT NULL)),
-    TM.id
-FROM Tramo_mayor TM;
+-- Tripulacion
+DECLARE @i int = 1
+WHILE @i <= 50
+BEGIN
+    INSERT INTO Tripulacion (Nombre, Cargo)
+    VALUES ('Tripulante ' + CONVERT(varchar, @i), 'Cargo ' + CONVERT(varchar, @i))
+    SET @i = @i + 1
+END
 
--- Crear vuelos y asignar a números de vuelo y tramos
-INSERT INTO Flight (Boarding_Time, Flight_Date, Gate, Check_In_Counter, Flight_Number_id, id_tramo, id_numeroTramo)
-SELECT
-    CONVERT(TIME, DATEADD(MINUTE, ABS(CHECKSUM(NEWID())) % 60, FN.Departure_Time)), -- Hora de embarque
-    DATEADD(DAY, ABS(CHECKSUM(NEWID())) % 730, GETDATE()), -- Fecha aleatoria en 2 años
-    ABS(CHECKSUM(NEWID())) % 50 + 1, -- Gate
-    ABS(CHECKSUM(NEWID())) % 2, -- Check-In Counter
-    FN.id,
-    TM.id,
-    NT.id
-FROM Flight_Number FN
-CROSS APPLY (SELECT TOP 1 id FROM Tramo_mayor ORDER BY NEWID()) AS TM
-CROSS APPLY (SELECT TOP 1 id FROM Numero_tramo WHERE id_tramoMayor = TM.id ORDER BY NEWID()) AS NT;
+-- Paso#3 Insercion de 1000 de 51000 primera prueba clientes
+DECLARE @i INT = 1;
+WHILE @i <= 1000
+BEGIN
+    INSERT INTO Cliente (Fecha_de_Nacimiento, Nombre)
+    VALUES (
+        DATEADD(YEAR, -ABS(CHECKSUM(NEWID()) % 60 + 18), GETDATE()), -- Fecha de nacimiento aleatoria entre 18 y 78 a�os
+        CONCAT('Cliente', @i)
+    );
+    SET @i = @i + 1;
+END;
 
--- Crear tramos menores
-INSERT INTO tramo_menor (origen, destino, duracion, distancia, orden, id_numeroTramo)
-SELECT
-    ABS(CHECKSUM(NEWID())) % 50 + 1, -- Aeropuerto origen
-    ABS(CHECKSUM(NEWID())) % 50 + 1, -- Aeropuerto destino
-    CONVERT(TIME, DATEADD(MINUTE, ABS(CHECKSUM(NEWID())) % 180 + 30, '00:00')), -- Duración entre 30 min y 3 horas
-    ABS(CHECKSUM(NEWID())) % 3000 + 100, -- Distancia entre 100 y 3100 km
-    ROW_NUMBER() OVER (PARTITION BY NT.id ORDER BY (SELECT NULL)),
-    NT.id
-FROM Numero_tramo NT
-CROSS APPLY (SELECT TOP (ABS(CHECKSUM(NEWID())) % 3 + 1) * FROM sys.all_objects) AS T; -- Cada tramo mayor tiene entre 1 y 3 tramos menores
+-- Paso #4 Insercion de 300 aviones iniciales para arrancar bien
+DECLARE @i INT = 1;
+WHILE @i <= 300
+BEGIN
+    INSERT INTO Avion (Inicio_de_Operacion, Estado, Modelo_Avion_id)
+    VALUES (
+        DATEADD(DAY, -ABS(CHECKSUM(NEWID()) % 730), GETDATE()),  -- Fecha aleatoria en los �ltimos 2 a�os
+        'Operativo', 
+        ABS(CHECKSUM(NEWID()) % 5) + 1 -- Modelo aleatorio entre 5 modelos
+    );
+    SET @i = @i + 1;
+END;
 
--- Crear asientos para cada modelo de avión
-INSERT INTO Seat (Size, Number, Location, Plane_Model_id, estado)
-SELECT
-    ABS(CHECKSUM(NEWID())) % 3 + 1, -- Tamaño entre 1 y 3
-    ROW_NUMBER() OVER (ORDER BY (SELECT NULL)), -- Número de asiento
-    CASE (ABS(CHECKSUM(NEWID())) % 3)
-        WHEN 0 THEN 'Ventana'
-        WHEN 1 THEN 'Pasillo'
-        ELSE 'Centro'
-    END,
-    PM.id,
-    'disponible'
-FROM Plane_Model PM
-CROSS APPLY (
-    SELECT TOP (ABS(CHECKSUM(NEWID())) % 100 + 100) * FROM sys.all_objects
-) AS Seats;
+-- Poblar numero de vuelo inicialmente con 500 despues hasta llegar a 2000
+DECLARE @i INT = 1;
+WHILE @i <= 500
+BEGIN
+    INSERT INTO Numero_Vuelo (Hora_Salida, Descripcion, Tipo, Aerolinea, Aeropuerto_Inicio, Aeropuerto_Destino)
+    VALUES (
+        CONVERT(TIME, DATEADD(SECOND, ABS(CHECKSUM(NEWID()) % 86400), 0)),  -- Hora aleatoria
+        CONCAT('Vuelo', @i),
+        ABS(CHECKSUM(NEWID()) % 2), -- Tipo aleatorio
+        'Aerolinea' + CONVERT(VARCHAR, ABS(CHECKSUM(NEWID()) % 10) + 1), -- Nombre aleatorio de aerol�nea
+        ABS(CHECKSUM(NEWID()) % 10) + 1, -- Aeropuerto de inicio aleatorio entre 10
+        ABS(CHECKSUM(NEWID()) % 10) + 1  -- Aeropuerto de destino aleatorio entre 10
+    );
+    SET @i = @i + 1;
+END;
 
--- Asignar asientos disponibles a cada vuelo
-INSERT INTO Available_Seat (Flight_id, Seat_id, estado)
-SELECT
-    F.id,
-    S.id,
-    'disponible'
-FROM Flight F
-JOIN Airplane A ON A.id = ABS(CHECKSUM(NEWID())) % 100 + 1 -- Asignar avión al vuelo
-JOIN Seat S ON S.Plane_Model_id = A.Plane_Model_id
-WHERE S.estado = 'disponible';
 
--- Crear 200,000 boletos
-INSERT INTO Ticket (Number, Customer_id)
-SELECT
-    ROW_NUMBER() OVER (ORDER BY (SELECT NULL)),
-    C.id
-FROM Customer C
-CROSS APPLY (SELECT TOP (ABS(CHECKSUM(NEWID())) % 3 + 1) * FROM sys.all_objects) AS T -- Cada cliente compra entre 1 y 3 boletos
-WHERE ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) <= 200000;
+---------------------------------- INSERCIONES MASIVAS 2DA PARTE-------------------------------------------------------------
+SELECT COUNT(*) FROM Asiento;
 
--- Asignar cupones a los tickets y asientos disponibles
-INSERT INTO Coupon (Date_of_Redemption, Class, Standby, Meal_Code, Ticketing_Code, Available_Seat_id, Flight_id)
-SELECT
-    DATEADD(DAY, ABS(CHECKSUM(NEWID())) % 730, GETDATE()), -- Fecha de redención
-    CASE (ABS(CHECKSUM(NEWID())) % 3)
-        WHEN 0 THEN 'Economy'
-        WHEN 1 THEN 'Business'
-        ELSE 'First'
-    END,
-    CASE (ABS(CHECKSUM(NEWID())) % 2)
-        WHEN 0 THEN 'Yes'
-        ELSE 'No'
-    END,
-    ABS(CHECKSUM(NEWID())) % 10, -- Código de comida
-    ROW_NUMBER() OVER (ORDER BY (SELECT NULL)), -- Código de ticket
-    AS.id, -- Asiento disponible
-    F.id -- Vuelo
-FROM Ticket T
-JOIN Available_Seat AS ON AS.estado = 'disponible'
-JOIN Flight F ON F.id = AS.Flight_id;
+--PASO#1 INSERTANDO 2000 vuelos
+DECLARE @i INT;
+SET @i = 1;
+WHILE @i <= 2000
+BEGIN
+    INSERT INTO Vuelo (Hora_Embarque, Fecha_Vuelo, Puerta, Mostrador_Check_In, Numero_Vuelo_id)
+    VALUES (
+        CONVERT(TIME, DATEADD(SECOND, ABS(CHECKSUM(NEWID()) % 86400), 0)),  -- Hora aleatoria
+        DATEADD(DAY, ABS(CHECKSUM(NEWID()) % 730), GETDATE()),  -- Fecha aleatoria en los pr�ximos 2 a�os
+        ABS(CHECKSUM(NEWID()) % 20) + 1, -- Puerta aleatoria
+        ABS(CHECKSUM(NEWID()) % 2), -- Mostrador Check-In aleatorio (0 o 1)
+        ABS(CHECKSUM(NEWID()) % 500) + 1 -- Numero de vuelo entre 1 y 500
+    );
+    SET @i = @i + 1;
+END;
 
+--PASO#2 Insertar 51000 Clientes
+DECLARE @i INT;
+SET @i = 1;
+WHILE @i <= 50000
+BEGIN
+    INSERT INTO Cliente (Fecha_de_Nacimiento, Nombre)
+    VALUES (
+        DATEADD(YEAR, -ABS(CHECKSUM(NEWID()) % 80 + 18), GETDATE()),  -- Fecha de nacimiento aleatoria (18-80 a�os)
+        LEFT(NEWID(), 30)  -- Nombre aleatorio
+    );
+    SET @i = @i + 1;
+END;
+
+
+-- Asiento
+DECLARE @i int = 1
+WHILE @i <= 100
+BEGIN
+    INSERT INTO Asiento (Tamano, Numero, Ubicacion, Modelo_Avion_id)
+    VALUES (ABS(CHECKSUM(NEWID())) % 10 + 1, @i, 'Ubicacion ' + CONVERT(varchar, @i), ABS(CHECKSUM(NEWID())) % 10 + 1)
+    SET @i = @i + 1
+END
+
+-- Tarjeta_Viajero_Frecuente
+DECLARE @i int = 1
+WHILE @i <= 200
+BEGIN
+    INSERT INTO Tarjeta_Viajero_Frecuente (Millas, Codigo_Comida, Cliente_id)
+    VALUES (ABS(CHECKSUM(NEWID())) % 10000, ABS(CHECKSUM(NEWID())) % 100, ABS(CHECKSUM(NEWID())) % 500 + 1)
+    SET @i = @i + 1
+END
+
+
+-- Asiento_Disponible
+DECLARE @i int = 1
+WHILE @i <= 200000
+BEGIN
+    DECLARE @asiento_id int
+    SELECT TOP 1 @asiento_id = id_asiento
+    FROM Asiento
+    ORDER BY NEWID()
+
+    INSERT INTO Asiento_Disponible (Vuelo_id, Asiento_id)
+    VALUES (ABS(CHECKSUM(NEWID())) % 2000 + 1, @asiento_id)
+    SET @i = @i + 1
+END
+
+-- Avion_Vuelo
+DECLARE @i int = 1
+WHILE @i <= 2000
+BEGIN
+    INSERT INTO Avion_Vuelo (id_vuelo, id_numero_registro)
+    VALUES (@i, ABS(CHECKSUM(NEWID())) % 100 + 1)
+    SET @i = @i + 1
+END
+
+--PASO#3 Insertar 200.000 mil tikets
+-- Create the sequence for generating unique ticket numbers
+CREATE SEQUENCE dbo.Boleto_Sequence
+    START WITH 1
+    INCREMENT BY 1;
+	
+-- Insert tickets, some with reservations and others without
+DECLARE @i INT = 1;
+DECLARE @cliente_id INT;
+DECLARE @boletos_cliente INT;
+DECLARE @total_boletos INT = 200000;
+DECLARE @num_boletos_insertados INT = 0;
+
+WHILE @num_boletos_insertados < @total_boletos
+BEGIN
+    -- Select a random client among the 51,000 existing ones
+    SET @cliente_id = ABS(CHECKSUM(NEWID()) % 51000) + 1;
+
+    -- Decide how many tickets this client will buy (between 2 and 3 tickets)
+    SET @boletos_cliente = ABS(CHECKSUM(NEWID()) % 2) + 2; -- Values between 2 and 3
+
+    -- Insert tickets for this client
+    WHILE @boletos_cliente > 0 AND @num_boletos_insertados < @total_boletos
+    BEGIN
+        -- Decide randomly if the ticket will be with or without a reservation (50% probability)
+        IF ABS(CHECKSUM(NEWID()) % 2) = 0
+        BEGIN
+            -- Ticket without reservation (Reserva_id will be NULL)
+            INSERT INTO Boleto (Numero, Cliente_id, Reserva_id)
+            VALUES (NEXT VALUE FOR dbo.Boleto_Sequence, @cliente_id, NULL);
+        END
+        ELSE
+        BEGIN
+            -- Ticket with reservation
+            DECLARE @Fecha_Reserva DATE = DATEADD(DAY, ABS(CHECKSUM(NEWID()) % 730), '2022-01-01');  -- Random date in 2 years
+            -- Insert the reservation
+            INSERT INTO Reserva (Cliente_id, Fecha_Reserva)
+            VALUES (@cliente_id, @Fecha_Reserva);
+            
+            -- Get the id of the newly created reservation
+            DECLARE @Reserva_id INT = SCOPE_IDENTITY();
+
+            -- Insert the ticket with the reservation
+            INSERT INTO Boleto (Numero, Cliente_id, Reserva_id)
+            VALUES (NEXT VALUE FOR dbo.Boleto_Sequence, @cliente_id, @Reserva_id);
+        END
+
+        -- Update the ticket counter and the counter for this client
+        SET @boletos_cliente = @boletos_cliente - 1;
+        SET @num_boletos_insertados = @num_boletos_insertados + 1;
+    END
+END;
+
+--PASO#4 Script para generar cupones y asignar asientos
+DECLARE @boleto_id INT;
+DECLARE @asiento_id INT;
+DECLARE @vuelo_id INT;
+DECLARE @num_escalas INT;
+DECLARE @cupon_id INT;
+DECLARE @asientos_disponibles TABLE (id_asiento_disponible INT);
+DECLARE @escala_id INT;
+
+-- Obtenemos todos los boletos que ya existen
+DECLARE boleto_cursor CURSOR FOR
+SELECT id_Codigo_Boleto
+FROM Boleto;
+
+-- Abrimos el cursor para recorrer todos los boletos
+OPEN boleto_cursor;
+FETCH NEXT FROM boleto_cursor INTO @boleto_id;
+
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    -- Determinamos un n�mero aleatorio de escalas (entre 1 y 3) para este boleto
+    SET @num_escalas = ABS(CHECKSUM(NEWID()) % 3) + 1;  -- 1 a 3 escalas
+
+    -- Para cada escala (o vuelo en caso de 1 vuelo directo)
+    WHILE @num_escalas > 0
+    BEGIN
+        -- Seleccionamos un vuelo aleatorio
+        SET @vuelo_id = (SELECT TOP 1 id_vuelo FROM Vuelo ORDER BY NEWID());
+
+        -- Llenamos una tabla temporal con los asientos disponibles para el vuelo
+        DELETE FROM @asientos_disponibles;
+        INSERT INTO @asientos_disponibles (id_asiento_disponible)
+        SELECT id_asiento_disponible
+        FROM Asiento_Disponible
+        WHERE Vuelo_id = @vuelo_id
+        AND id_asiento_disponible NOT IN (
+            SELECT Asiento_Disponible_id
+            FROM Cupon
+            WHERE Vuelo_id = @vuelo_id
+        );
+
+        -- Seleccionamos un asiento aleatorio de los disponibles
+        SET @asiento_id = (SELECT TOP 1 id_asiento_disponible FROM @asientos_disponibles ORDER BY NEWID());
+
+        -- Generamos una fecha y hora aleatoria para el check-in del cup�n
+        DECLARE @Checkin_Hora TIME = CAST(ABS(CHECKSUM(NEWID()) % 24) AS VARCHAR) + ':' + CAST(ABS(CHECKSUM(NEWID()) % 60) AS VARCHAR);
+        DECLARE @Checkin_Fecha DATE = DATEADD(DAY, ABS(CHECKSUM(NEWID()) % 730), '2022-01-01');
+
+        -- Insertamos el cup�n asociado al boleto y al asiento disponible
+        INSERT INTO Cupon (Fecha_Redencion, Clase, Standby, Codigo_Comida, Codigo_Boleto, Asiento_Disponible_id, Vuelo_id, Checkin_Hora, Checkin_Fecha)
+        VALUES (
+            GETDATE(),                       -- Fecha de redenci�n actual
+            'Economy',                       -- Clase aleatoria (puedes cambiar este valor)
+            'No',                            -- Standby (puede ser s� o no, aleatoriamente)
+            ABS(CHECKSUM(NEWID()) % 10) + 1, -- C�digo de comida aleatorio
+            @boleto_id,                      -- Boleto al que est� asociado el cup�n
+            @asiento_id,                     -- Asiento disponible seleccionado
+            @vuelo_id,                       -- Vuelo seleccionado
+            @Checkin_Hora,                   -- Hora de check-in aleatoria
+            @Checkin_Fecha                   -- Fecha de check-in aleatoria
+        );
+
+        -- Insertamos la escala asociada al boleto y al vuelo
+        INSERT INTO Escala (id_boleto, id_vuelo, Orden)
+        VALUES (@boleto_id, @vuelo_id, @num_escalas);
+
+        -- Disminuimos el n�mero de escalas restantes
+        SET @num_escalas = @num_escalas - 1;
+    END
+
+    -- Vamos al siguiente boleto
+    FETCH NEXT FROM boleto_cursor INTO @boleto_id;
+END;
+
+-- Cerramos el cursor y liberamos recursos
+CLOSE boleto_cursor;
+DEALLOCATE boleto_cursor;
