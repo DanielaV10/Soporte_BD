@@ -15,13 +15,22 @@ use airport;
 create table Cliente(
     id_cliente int identity(1,1) primary key,
     Fecha_de_Nacimiento date not null,
-    Nombre varchar(100) not null
+    Nombre varchar(100) not null,
+    Apellido varchar(100) not null, -- Añadido
+    Genero char(1), -- 'M' para Masculino, 'F' para Femenino, 'O' para Otro
+    Nacionalidad varchar(100), -- Añadido
+    Telefono varchar(20), -- Añadido
+    Email varchar(100), -- Añadido
+    Direccion varchar(255) -- Añadido
 );
 
 -- 2. Aeropuerto
 create table Aeropuerto(
-    id_aereopuerto int identity(1,1) primary key,
-    Nombre varchar(100) not null
+    id_aeropuerto int identity(1,1) primary key,
+    Nombre varchar(100) not null,
+    Codigo_IATA char(3) not null, -- Añadido
+    Ciudad varchar(100) not null, -- Añadido
+    Pais varchar(100) not null -- Añadido
 );
 
 -- 3. Modelo de Avion
@@ -37,6 +46,8 @@ create table Avion(
     Inicio_de_Operacion date not null,
     Estado varchar(100) not null,
     Modelo_Avion_id int not null,
+    Numero_Asientos int not null, -- Añadido
+    Fabricante varchar(100), -- Añadido
     foreign key (Modelo_Avion_id) references Modelo_Avion(id_modelo_avion)
 );
 
@@ -45,12 +56,13 @@ create table Numero_Vuelo(
     id_numero_vuelo int identity(1,1) primary key,
     Hora_Salida time not null,
     Descripcion varchar(100) not null,
-    Tipo bit not null,
+    Tipo bit not null, -- 0: Nacional, 1: Internacional
     Aerolinea varchar(100) not null,
+    Duracion_Estimada time not null, -- Añadido
     Aeropuerto_Inicio int not null,
     Aeropuerto_Destino int not null,
-    foreign key (Aeropuerto_Inicio) references Aeropuerto(id_aereopuerto),
-    foreign key (Aeropuerto_Destino) references Aeropuerto(id_aereopuerto)
+    foreign key (Aeropuerto_Inicio) references Aeropuerto(id_aeropuerto),
+    foreign key (Aeropuerto_Destino) references Aeropuerto(id_aeropuerto)
 );
 
 -- 6. Vuelo
@@ -60,6 +72,7 @@ create table Vuelo(
     Fecha_Vuelo date not null,
     Puerta tinyint not null,
     Mostrador_Check_In bit not null,
+    Duracion_Real time, -- Añadido
     Numero_Vuelo_id int not null,
     foreign key (Numero_Vuelo_id) references Numero_Vuelo(id_numero_vuelo)
 );
@@ -70,6 +83,7 @@ create table Asiento(
     Tamano int not null,
     Numero int not null,
     Ubicacion varchar(100) not null,
+    Clase varchar(50) not null, -- Añadido
     Modelo_Avion_id int not null,
     foreign key (Modelo_Avion_id) references Modelo_Avion(id_modelo_avion)
 );
@@ -79,6 +93,7 @@ create table Asiento_Disponible(
     id_asiento_disponible int identity(1,1) primary key,
     Vuelo_id int not null,
     Asiento_id int not null,
+    Estado varchar(100) not null, -- Añadido (ej: 'Disponible', 'Reservado')
     foreign key (Vuelo_id) references Vuelo(id_vuelo),
     foreign key (Asiento_id) references Asiento(id_asiento)
 );
@@ -88,6 +103,7 @@ create table Reserva(
     id_reserva int identity(1,1) primary key,
     Cliente_id int not null,
     Fecha_Reserva date not null,
+    Estado varchar(100) not null, -- Añadido (ej: 'Confirmada', 'Pendiente')
     foreign key (Cliente_id) references Cliente(id_cliente)
 );
 
@@ -97,11 +113,14 @@ create table Boleto(
     Numero int not null,
     Cliente_id int not null,
     Reserva_id int null,
+	Cambio_boleto int 
+    Precio decimal(10,2) not null, -- Añadido
+    Clase varchar(50) not null, -- Añadido (ej: 'Económica', 'Primera Clase')
     foreign key (Cliente_id) references Cliente(id_cliente),
     foreign key (Reserva_id) references Reserva(id_reserva)
 );
 
--- 21. Escalas TABLA AÑADIDA RESEINTEMENTE
+-- 21. Escalas
 create table Escala (
     id_escala int identity(1,1) primary key, -- Identificador único de la escala
     id_boleto int not null,                   -- Boleto al que pertenece la escala
@@ -133,6 +152,7 @@ create table Piezas_de_Equipaje(
     id_piezas_equipaje int identity(1,1) primary key,
     Numero int not null,
     Peso int not null,
+    Dimensiones varchar(50) not null, -- Añadido (ej: '55x40x23 cm')
     Cupon_id int not null,
     foreign key (Cupon_id) references Cupon(id_cupon)
 );
@@ -143,6 +163,7 @@ create table Tarjeta_Viajero_Frecuente(
     Millas int not null,
     Codigo_Comida int not null,
     Cliente_id int not null,
+    Nivel varchar(50) not null, -- Añadido (ej: 'Bronce', 'Plata', 'Oro')
     foreign key (Cliente_id) references Cliente(id_cliente)
 );
 
@@ -151,6 +172,8 @@ create table Documentacion(
     id_documentacion int identity(1,1) primary key,
     Tipo_Documento varchar(100) not null,
     Numero_Documento varchar(100) not null,
+    Fecha_Emision date not null, -- Añadido
+    Fecha_Vencimiento date, -- Añadido
     id_boleto int not null,
     foreign key (id_boleto) references Boleto(id_Codigo_Boleto)
 );
@@ -165,7 +188,10 @@ create table Rol(
 create table Tripulacion(
     id_tripulacion int identity(1,1) primary key,
     Nombre varchar(100) not null,
-    Cargo varchar(100) not null
+    Apellido varchar(100) not null, -- Añadido
+    Cargo varchar(100) not null,
+    Nacionalidad varchar(100), -- Añadido
+    Experiencia int not null -- Añadido (en años)
 );
 
 -- 17. Tripulación en Vuelo
@@ -179,7 +205,7 @@ create table Tripulacion_Vuelo(
     primary key (Vuelo_id, Tripulacion_id, Rol_id)
 );
 
--- 18. Avion en Vuelo (nueva tabla para asignación de aeronaves a cada vuelo)
+-- 18. Avion en Vuelo
 create table Avion_Vuelo(
     id_avion_vuelo int identity(1,1) primary key,
     id_vuelo int not null,
@@ -208,6 +234,9 @@ create table Multa_Cancelacion(
     Fecha_Pago date,
     foreign key (id_cancelacion) references Cancelacion(id_cancelacion)
 );
+
+
+
 -------------------------------------------PROCESOS ALMACENADOS------------------------------------------------------------------
 CREATE PROCEDURE CrearReservaConBoleto
     @Cliente_id INT,
